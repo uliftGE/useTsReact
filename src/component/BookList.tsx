@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import BookDetailModal from './BookDetailModal.tsx';
 import { Book } from '../type/book.ts';
-import { fetchBooks } from '../api/index.ts';
+import { fetchBooks, updateBook } from '../api/index.ts';
 
 type BookPreview = Pick<Book, 'id' | 'title' | 'coverImage'>;
 
@@ -11,7 +11,7 @@ const BookList = () => {
   const [books, setBooks] = useState<Book[]>([]);
   const [selectedBook, setSelectedBook] = useState<Book | null>(null);
   const [modalOpen, setModalOpen] = useState<boolean>(false);
-  const [filterStatus, setFilterStatus] = useState<ReadStatus | null>(null);
+  const [filterStatus, setFilterStatus] = useState<ReadStatus>('All');
   const [isDataChanged, setIsDataChanged] = useState(false);
 
   useEffect(() => {
@@ -19,20 +19,9 @@ const BookList = () => {
       try {
         const data = await fetchBooks();
         if (data) {
-          let readStatus: Record<string, boolean> = {};
-          try {
-            readStatus = JSON.parse(localStorage.getItem('readStatus') ?? '{}');
-          } catch (parseError) {
-            console.error(
-              'Failed to parse readStatus from localStorage:',
-              parseError
-            );
-            readStatus = {};
-          }
-
           const updatedBooks = data.map((book: Book) => ({
             ...book,
-            read: readStatus[book.id] ?? false,
+            read: book.read,
           }));
           setBooks(updatedBooks);
         } else {
@@ -50,29 +39,20 @@ const BookList = () => {
   }, [isDataChanged]);
 
   const toggleBookReadStatus = async (id: number) => {
-    const updatedBooks = books.map((book) =>
-      book.id === id ? { ...book, read: !book.read } : book
-    );
+    let readStatus;
+
+    const updatedBooks = books.map((book) => {
+      if (book.id === id) readStatus = !book.read;
+      return book.id === id ? { ...book, read: !book.read } : book;
+    });
 
     setBooks(updatedBooks);
 
     try {
-      let readStatus: Record<number, boolean> = {};
-      try {
-        readStatus = JSON.parse(localStorage.getItem('readStatus') ?? '{}');
-      } catch (parseError) {
-        console.error(
-          'Failed to parse readStatus from localStorage:',
-          parseError
-        );
-        readStatus = {};
-      }
-
-      readStatus[id] = !readStatus[id];
-
-      localStorage.setItem('readStatus', JSON.stringify(readStatus));
+      await updateBook(id, '', readStatus);
     } catch (error) {
-      console.error('Failed to update readStatus in localStorage:', error);
+      console.error(error);
+      alert('읽음 상태를 갱신하는 데 실패했습니다. 다시 시도해주세요.');
     }
   };
 
@@ -86,7 +66,7 @@ const BookList = () => {
     setSelectedBook(null);
   };
 
-  const getFilteredBooks = (status: ReadStatus | null) => {
+  const getFilteredBooks = (status: ReadStatus) => {
     if (status === 'All') return books;
     return books.filter((book) => (status === 'Read' ? book.read : !book.read));
   };
@@ -95,10 +75,10 @@ const BookList = () => {
     <div style={styles.container}>
       <h1 style={styles.header}>독서 목록</h1>
       <div style={styles.buttonGroup}>
-        {['Read', 'Unread', 'All'].map((status, index) => (
+        {['All', 'Read', 'Unread'].map((status, index) => (
           <button
             key={index}
-            onClick={() => setFilterStatus(status as ReadStatus | null)}
+            onClick={() => setFilterStatus(status as ReadStatus)}
             style={{
               ...styles.button,
               backgroundColor: filterStatus === status ? '#007BFF' : '#f0f0f0',

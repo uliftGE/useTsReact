@@ -27,7 +27,8 @@ export const fetchBookDetail = async (
 // 책 데이터 업데이트 하기
 export const updateBook = async (
   id: number,
-  review: Book['review']
+  review: Book['review'],
+  read?: boolean
 ): Promise<Book | { error: string | null; time: string }> => {
   try {
     const response = await fetch(`${BASE_URL}/books/${id}`, {
@@ -35,12 +36,14 @@ export const updateBook = async (
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ review }),
+      body: JSON.stringify({ review, read }),
     });
     const data: BookResponse = await response.json();
     if (!response.ok) {
+      alert('리뷰를 작성해 주세요.');
       return { error: data.error, time: data.time };
     }
+    alert('저장되었습니다!');
     return data;
   } catch (error) {
     console.error('Error updating book:', error);
